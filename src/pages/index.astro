@@ -1,0 +1,193 @@
+---
+import '../styles/global.css';
+import { graphicWorks, socialLinks } from '../data/portfolio';
+import Toolbox from '../components/Toolbox.astro';
+import WorksGallery from '../components/WorksGallery.astro';
+import BackgroundGrid from '../components/BackgroundGrid.astro';
+import CustomCursor from '../components/CustomCursor.astro';
+import { Image } from 'astro:assets';
+import lightProfile from '../../assets/images/lightmode_profile.png';
+import darkProfile from '../../assets/images/darkmode_profile.png';
+const drive='https://drive.google.com/drive/folders/1xdY_tE45nb8Q_1simiI7ZcgUJ-62cxVj?usp=drive_link';
+---
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="description" content="Video editing, motion graphics and graphic design by Niño Evangelista. NDE Creatives, Philippines."/><title>NDE Creatives — Niño Evangelista</title><link rel="icon" href="/logo.png"/></head><body>
+<BackgroundGrid />
+<CustomCursor />
+<header class="top-bar"><button id="theme" aria-label="Switch to dark theme"><i data-lucide="sun"></i></button><span></span><button id="play" aria-label="Show floating skills" aria-pressed="false"><i data-lucide="play"></i></button><span></span><button id="about-toggle" data-view="about">about</button></header>
+<main><div id="home-screen"><div class="skills" aria-hidden="true"><span class="skill skill-0">Video Editing</span><span class="skill skill-1">Storytelling</span><span class="skill skill-2">Motion Design</span><span class="skill skill-3">CapCut</span><span class="skill skill-4">After Effects</span><span class="skill skill-5">Social Content</span><span class="skill skill-6">Typography</span><span class="skill skill-7">Graphic Design</span></div><section class="intro"><div class="profile"><Image class="profile-light" src={lightProfile} alt="Niño Evangelista" width={118} densities={[1, 2]} loading="eager" /><Image class="profile-dark" src={darkProfile} alt="Niño Evangelista" width={118} densities={[1, 2]} loading="eager" /></div><p class="name">Niño Evangelista</p><h1>Video editor <button id="toolbox-toggle" class="hero-folder" type="button" aria-label="Open my creative toolbox" aria-haspopup="dialog" aria-controls="toolbox" aria-expanded="false"><span class="folder-art" aria-hidden="true"><span class="folder-back"></span><span class="folder-paper"></span><span class="folder-front"></span></span><span class="folder-label" aria-hidden="true">My toolbox</span></button> & <br/> Graphic designer</h1></section>
+<nav class="dock" aria-label="Explore NDE Creatives"><button class="dock-item video" data-view="films" aria-label="Films: cinematic edits, vlogs and long-form videos"><i data-lucide="clapperboard"></i><span>Films</span></button><button class="dock-item reels" data-view="reels" aria-label="Reels and short-form videos"><i data-lucide="smartphone"></i><span>Reels</span></button><button class="dock-item motion" data-view="motion" aria-label="Motion graphics"><i data-lucide="sparkles"></i><span>Motion</span></button><button class="dock-item design" data-view="design" aria-label="Graphic design"><i data-lucide="layers"></i><span>Design</span></button><button class="dock-item about" data-view="about" aria-label="About Niño"><i data-lucide="user-round"></i><span>About</span></button><a class="dock-item folder" href={drive} target="_blank" rel="noopener noreferrer" aria-label="Open all works in Google Drive"><i data-lucide="folder-open"></i><span>Works</span></a><button class="dock-item contact" data-view="contact" aria-label="Contact"><i data-lucide="message-circle"></i><span>Contact</span></button></nav>
+</div>
+<section id="detail" class="detail" hidden aria-labelledby="detail-title" tabindex="-1"><div id="detail-content"></div><button class="back" id="back"><i data-lucide="chevron-left"></i> back</button></section>
+<template id="about"><p class="kicker">THE PERSON BEHIND NDE</p><h2 id="detail-title">Hi, I’m Niño.</h2><p>I’m a video editor and web developer based in the Philippines. NDE Creatives brings together my work in video editing, motion graphics, and graphic design.</p><p>I started editing with CapCut and now explore motion design with Adobe After Effects. I enjoy making ideas clear, engaging, and easy to connect with.</p><p>I’m building my freelance experience, one project at a time. My first client project was a long-form video, completed a day before the deadline and refined with the client’s feedback.</p><p>Have something in mind? I’d love to hear about it.</p><a class="action" href="https://www.facebook.com/nino.evangelista.94" target="_blank" rel="noopener noreferrer">Contact me on Facebook</a></template>
+<template id="design"><p class="kicker">GRAPHIC DESIGN</p><h2 id="detail-title">A clear message. A strong visual.</h2><p class="category-intro">I create posters and social graphics with thoughtful typography, clear hierarchy, and a focus on the message.</p>{graphicWorks.length ? <div class="graphic-gallery">{graphicWorks.map(work => <figure><a href={work.image} target="_blank" rel="noopener noreferrer"><img src={work.image} alt={work.alt} loading="lazy" /></a><figcaption>{work.title}</figcaption></figure>)}</div> : <p class="empty-collection">Selected designs are coming soon.</p>}</template>
+<template id="contact"><p class="kicker">LET’S CREATE SOMETHING</p><h2 id="detail-title">What are you working on?</h2><p>Need help with a video, a motion graphic, or a poster? Tell me about the idea, the content you have, and your timeline.</p><div class="social-links">{socialLinks.map(profile => profile.url ? <a class="action" href={profile.url} target="_blank" rel="noopener noreferrer">{profile.label}</a> : <span class="social-pending">{profile.label}<small>Profile coming soon</small></span>)}</div><p class="note">Based in the Philippines · Available for remote projects</p></template>
+</main>
+<Toolbox />
+<WorksGallery />
+<div id="transition-wipe" hidden aria-hidden="true"></div>
+<script>
+import { createIcons, Sun, Moon, Play, Pause, Clapperboard, Sparkles, Layers, UserRound, FolderOpen, MessageCircle, ChevronLeft, Smartphone } from 'lucide';
+
+// Keep all DOM references in one place so they are easy to find.
+const icons = { Sun, Moon, Play, Pause, Clapperboard, Sparkles, Layers, UserRound, FolderOpen, MessageCircle, ChevronLeft, Smartphone };
+const paintIcons = () => createIcons({ icons });
+const home = document.querySelector<HTMLElement>('#home-screen')!;
+const detail = document.querySelector<HTMLElement>('#detail')!;
+const worksView = document.querySelector<HTMLElement>('#works-gallery')!;
+const content = document.querySelector<HTMLElement>('#detail-content')!;
+const wipe = document.querySelector<HTMLElement>('#transition-wipe')!;
+const colors: Record<string, string> = {films:'#f5d85b',reels:'#dcc9fa',motion:'#a8cae7',design:'#c8dbc4',about:'#dedde3',contact:'#9dd6ed',works:'#a0d7e5'};
+const aboutToggle = document.querySelector<HTMLButtonElement>('#about-toggle')!;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let activeView = 'home';
+let busy = false;
+let opener: HTMLElement | null = null;
+paintIcons();
+
+// The dock opens with a colored circle; closing reverses both animation stages.
+async function navigate(view: string, source: HTMLElement | null, animate = true) {
+  if (busy || activeView === view) return;
+  busy = true;
+  const closing = view === 'home';
+  const isVideoView = ['films', 'reels', 'motion'].includes(view);
+  if (!closing) opener = source;
+  const shouldAnimate = animate && !reduceMotion.matches;
+  const rect = opener?.getBoundingClientRect();
+  const x = rect ? rect.left + rect.width / 2 : innerWidth / 2;
+  const y = rect ? rect.top + rect.height / 2 : innerHeight / 2;
+  const circle = [
+    { clipPath: `circle(0px at ${x}px ${y}px)`, opacity: 1 },
+    { clipPath: `circle(${Math.hypot(innerWidth, innerHeight)}px at ${x}px ${y}px)`, opacity: 1 },
+  ];
+  const fade = [{ opacity: 1 }, { opacity: 0 }];
+  const direction = closing ? 'reverse' : 'normal';
+
+  home.inert = true;
+  detail.inert = true;
+  worksView.inert = true;
+  aboutToggle.disabled = true;
+  resetDock();
+  wipe.style.background = colors[closing ? activeView : view] || '#dedde3';
+
+  async function playStage(keyframes: Keyframe[], duration: number, easing: string) {
+    await wipe.animate(keyframes, { duration, easing, direction, fill: 'forwards' }).finished;
+  }
+
+  try {
+    if (shouldAnimate) {
+      wipe.hidden = false;
+      // On return, first fade the color in over the project.
+      if (closing) await playStage(fade, 340, 'linear');
+      else await playStage(circle, 540, 'cubic-bezier(.65,0,.2,1)');
+    }
+
+    // Swap screens while the colored overlay completely covers them.
+    worksView.hidden = !isVideoView;
+    if (closing) {
+      detail.hidden = true;
+      home.style.visibility = '';
+    } else if (isVideoView) {
+      detail.hidden = true;
+      home.style.visibility = 'hidden';
+      worksView.scrollTop = 0;
+    } else {
+      const template = document.getElementById(view) as HTMLTemplateElement;
+      content.replaceChildren(template.content.cloneNode(true));
+      home.style.visibility = 'hidden';
+      detail.hidden = false;
+      detail.dataset.page = view;
+      detail.scrollTop = 0;
+      paintIcons();
+    }
+    aboutToggle.textContent = closing ? 'about' : 'back';
+    document.dispatchEvent(new CustomEvent('nde:viewchange', { detail: { view } }));
+
+    if (shouldAnimate) {
+      // Returning shrinks the circle into the original dock button.
+      if (closing) await playStage(circle, 540, 'cubic-bezier(.65,0,.2,1)');
+      else await playStage(fade, 340, 'linear');
+    }
+  } finally {
+    wipe.hidden = true;
+    wipe.getAnimations().forEach(animation => animation.cancel());
+    detail.hidden = closing || isVideoView;
+    detail.inert = closing || isVideoView;
+    worksView.hidden = !isVideoView;
+    worksView.inert = !isVideoView;
+    home.inert = !closing;
+    home.style.visibility = closing ? '' : 'hidden';
+    aboutToggle.disabled = false;
+    activeView = view;
+    document.body.dataset.view = view;
+    busy = false;
+    if (closing) opener?.focus({preventScroll:true});
+    else (isVideoView ? worksView : detail).focus({preventScroll:true});
+  }
+}
+
+document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button => {
+  button.addEventListener('click', () => {
+    if (button === aboutToggle) {
+      navigate(activeView === 'home' ? 'about' : 'home', button, false);
+      return;
+    }
+    navigate(button.dataset.view!, button);
+  });
+});
+document.addEventListener('nde:navigate', event => {
+  const request = (event as CustomEvent<{ view: string; source: HTMLElement }>).detail;
+  navigate(request.view, request.source);
+});
+document.querySelector('#back')!.addEventListener('click', event => navigate('home', event.currentTarget as HTMLElement));
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && activeView !== 'home') navigate('home', null); });
+
+// Changing real dimensions lets the glass and neighboring icons move with them.
+const dock = document.querySelector<HTMLElement>('.dock')!;
+const items = [...document.querySelectorAll<HTMLElement>('.dock-item')];
+const dockHover = matchMedia('(hover: hover) and (pointer: fine) and (min-width: 701px)');
+function resetDock() {
+  items.forEach(item => item.style.removeProperty('--size'));
+}
+function magnifyDock(index: number) {
+  if (busy || !dockHover.matches || reduceMotion.matches) return;
+  items.forEach((item, itemIndex) => {
+    const distance = Math.abs(itemIndex - index);
+    item.style.setProperty('--size', distance === 0 ? '76px' : distance === 1 ? '64px' : '58px');
+  });
+}
+items.forEach((item, index) => {
+  item.addEventListener('pointerenter', event => {
+    if (event.pointerType === 'mouse') magnifyDock(index);
+  });
+});
+dock.addEventListener('pointerleave', resetDock);
+dockHover.addEventListener('change', resetDock);
+reduceMotion.addEventListener('change', resetDock);
+
+// The Play control reveals the skill tags; Pause hides them.
+const play = document.querySelector<HTMLButtonElement>('#play')!;
+play.addEventListener('click', () => {
+  const enabled = document.body.classList.toggle('skills-on');
+  play.setAttribute('aria-pressed', String(enabled));
+  play.setAttribute('aria-label', enabled ? 'Hide floating skills' : 'Show floating skills');
+  play.innerHTML = enabled ? '<i data-lucide="pause"></i>' : '<i data-lucide="play"></i>';
+  paintIcons();
+});
+
+// Save the visitor's theme on this device; storage failure does not block the site.
+const theme = document.querySelector<HTMLButtonElement>('#theme')!;
+function setTheme(dark: boolean) {
+  document.documentElement.classList.toggle('dark',dark);
+  theme.innerHTML = dark ? '<i data-lucide="moon"></i>' : '<i data-lucide="sun"></i>';
+  theme.setAttribute('aria-label',dark ? 'Switch to light theme' : 'Switch to dark theme');
+  paintIcons();
+}
+try { setTheme(localStorage.getItem('nde-theme') === 'dark'); } catch {}
+theme.addEventListener('click', () => {
+  const dark = !document.documentElement.classList.contains('dark');
+  setTheme(dark);
+  try { localStorage.setItem('nde-theme',dark ? 'dark' : 'light'); } catch {}
+});
+</script>
+</body>
+</html>

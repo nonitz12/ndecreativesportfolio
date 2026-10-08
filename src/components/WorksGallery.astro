@@ -1,0 +1,349 @@
+---
+import { works } from '../data/works';
+---
+
+<section id="works-gallery" class="detail" hidden tabindex="-1" aria-labelledby="works-title">
+  <div class="works-shell">
+    <header class="works-header">
+      <div><p class="kicker" id="works-category">FILMS</p><h2 id="works-title">Stories worth staying for.</h2><p id="works-intro" class="category-intro"></p></div>
+    </header>
+    <div id="works-browser">
+      <p id="works-empty" class="empty-collection" hidden>Selected edits are coming soon.</p>
+      <div id="works-collection">
+      <div class="works-stage" role="region" aria-roledescription="carousel" aria-label="Video edits">
+        {works.map((work, index) => (
+          <button type="button" class="work-card" data-index={index} data-category={work.category} data-video={work.video} data-preview={work.preview} aria-label={`Watch ${work.title}, ${work.duration}`}>
+            <span class="mac-titlebar" aria-hidden="true"><span class="mac-lights"><span></span><span></span><span></span></span><span class="mac-window-title">{work.title} / NDE Creatives</span><span class="mac-window-icon">&#8943;</span></span>
+            <span class="work-image">
+              <img src={work.poster} alt="" width="616" height="346" loading="lazy" decoding="async" />
+              <video class="work-preview" muted loop playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
+              <span class="work-shade"></span>
+              <span class="work-caption"><span>{work.title}</span><span>{work.duration}</span></span>
+              <span class="work-mini" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+              <span class="work-play" aria-hidden="true">&#9654; Watch edit</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      <nav class="work-pagination" aria-label="Choose an edit">{works.map((work, index) => <button type="button" data-work-select={index} aria-label={`Show ${work.title}`} aria-pressed={index === 0}></button>)}</nav>
+      <footer class="works-footer">
+        <button id="work-prev" type="button" aria-label="Previous edit">&larr;</button>
+        <div><p id="work-status" aria-live="polite" aria-atomic="true">Edit 01 · 1 of {works.length}</p><p class="works-hint">Scroll or swipe to explore · Click to watch</p></div>
+        <button id="work-next" type="button" aria-label="Next edit">&rarr;</button>
+      </footer>
+      </div>
+      <button class="back works-back" type="button"><span aria-hidden="true">&larr;</span> back</button>
+    </div>
+    <section id="work-player" hidden aria-label="Video playback">
+      <h3 id="work-player-title"></h3>
+      <div class="mac-player-window">
+        <div class="mac-titlebar" aria-hidden="true"><span class="mac-lights"><span></span><span></span><span></span></span><span class="mac-window-title" id="player-window-title">NDE Creatives</span><span class="mac-window-icon">&#8943;</span></div>
+        <video id="work-video" controls playsinline preload="none" aria-labelledby="work-player-title"></video>
+      </div>
+      <p id="work-error" hidden role="status">This video could not load. <a id="work-direct" href="/projects/videos/edit-01.mp4" target="_blank" rel="noopener noreferrer">Open the video directly</a>.</p>
+      <button id="work-return" class="back" type="button">&larr; All edits</button>
+    </section>
+  </div>
+  <div class="work-wipe" hidden aria-hidden="true"></div>
+</section>
+
+<script>
+  import { videoCategories } from '../data/portfolio';
+  const gallery = document.querySelector<HTMLElement>('#works-gallery')!;
+  const browser = gallery.querySelector<HTMLElement>('#works-browser')!;
+  const stage = gallery.querySelector<HTMLElement>('.works-stage')!;
+  const allCards = [...gallery.querySelectorAll<HTMLButtonElement>('.work-card')];
+  let cards = [...allCards];
+  const prev = gallery.querySelector<HTMLButtonElement>('#work-prev')!;
+  const next = gallery.querySelector<HTMLButtonElement>('#work-next')!;
+  const status = gallery.querySelector<HTMLElement>('#work-status')!;
+  const player = gallery.querySelector<HTMLElement>('#work-player')!;
+  const video = gallery.querySelector<HTMLVideoElement>('#work-video')!;
+  const returnButton = gallery.querySelector<HTMLButtonElement>('#work-return')!;
+  const error = gallery.querySelector<HTMLElement>('#work-error')!;
+  const wipe = gallery.querySelector<HTMLElement>('.work-wipe')!;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const hover = matchMedia('(hover: hover) and (pointer: fine)');
+  let selected = 0;
+  let busy = false;
+  let lastWheel = 0;
+  let previewToken = 0;
+  let playerOrigin = { x: 0, y: 0 };
+  let returnCard = cards[0];
+
+  function stopPreviews() {
+    previewToken++;
+    allCards.forEach(card => {
+      card.classList.remove('previewing');
+      const preview = card.querySelector('video')!;
+      preview.pause();
+      if (preview.hasAttribute('src')) { preview.removeAttribute('src'); preview.load(); }
+    });
+  }
+
+  async function previewCard(index: number) {
+    stopPreviews();
+    if (!hover.matches || reduced.matches || busy || gallery.hidden || !player.hidden || document.hidden) return;
+    const token = previewToken;
+    const card = cards[index];
+    if (!card) return;
+    const preview = card.querySelector('video')!;
+    preview.src = card.dataset.preview!;
+    preview.muted = true;
+    try {
+      await preview.play();
+      if (token === previewToken) card.classList.add('previewing');
+    } catch { /* Keep the thumbnail when autoplay is unavailable. */ }
+  }
+
+  const allPagination = [...gallery.querySelectorAll<HTMLButtonElement>('[data-work-select]')];
+  let pagination = [...allPagination];
+  function arrange() {
+    prev.disabled = next.disabled = cards.length < 2;
+    if (!cards.length) { status.textContent = ''; return; }
+    // CSS flex-grow morphs the panel widths while keeping every edit in view.
+    cards.forEach((card, index) => {
+      const active = index === selected;
+      card.classList.toggle('is-selected', active);
+      card.setAttribute('aria-current', String(active));
+      const title = card.querySelector('.work-caption > span')!.textContent;
+      card.setAttribute('aria-label', `${active ? 'Watch' : 'Expand'} ${title}`);
+      pagination[index].setAttribute('aria-pressed', String(active));
+    });
+    const title = cards[selected].querySelector('.work-caption > span')!.textContent;
+    status.textContent = `${title} / ${selected + 1} of ${cards.length}`;
+  }
+  function select(index: number) {
+    if (busy || !player.hidden || !cards.length) return;
+    stopPreviews();
+    selected = (index + cards.length) % cards.length;
+    arrange();
+  }
+
+  function stopVideo() {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    error.hidden = true;
+  }
+  async function playerTransition(closing: boolean, swap: () => void) {
+    if (reduced.matches) { swap(); return; }
+    const { x, y } = playerOrigin;
+    const circle = [
+      { clipPath: `circle(0px at ${x}px ${y}px)`, opacity: 1 },
+      { clipPath: `circle(${Math.hypot(innerWidth, innerHeight)}px at ${x}px ${y}px)`, opacity: 1 },
+    ];
+    const fade = [{ opacity: 1 }, { opacity: 0 }];
+    const direction = closing ? 'reverse' : 'normal';
+    async function play(frames: Keyframe[], duration: number, easing: string) {
+      await wipe.animate(frames, { duration, easing, direction, fill: 'forwards' }).finished;
+    }
+    wipe.hidden = false;
+    try {
+      if (closing) await play(fade, 340, 'linear');
+      else await play(circle, 540, 'cubic-bezier(.65,0,.2,1)');
+      swap();
+      if (closing) await play(circle, 540, 'cubic-bezier(.65,0,.2,1)');
+      else await play(fade, 340, 'linear');
+    } catch {
+      // Shared navbar navigation may cancel a player transition.
+    } finally {
+      wipe.hidden = true;
+      wipe.getAnimations().forEach(animation => animation.cancel());
+    }
+  }
+  async function returnToGallery() {
+    if (busy) return;
+    busy = true;
+    video.pause();
+    try {
+      await playerTransition(true, () => {
+        stopVideo();
+        player.hidden = true;
+        browser.hidden = false;
+        arrange();
+      });
+      if (!gallery.hidden) returnCard.focus({ preventScroll: true });
+    } finally { busy = false; }
+  }
+  async function watch(index: number) {
+    if (busy || !cards[index]) return;
+    // Preserve the clicked card's position so the reverse wipe returns to it.
+    returnCard = cards[index];
+    arrange();
+    const rect = cards[index].querySelector('.work-play')!.getBoundingClientRect();
+    playerOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    busy = true;
+    stopPreviews();
+    gallery.querySelector('#work-player-title')!.textContent = cards[index].querySelector('.work-caption > span')!.textContent;
+    gallery.querySelector('#player-window-title')!.textContent = gallery.querySelector('#work-player-title')!.textContent + ' / NDE Creatives';
+    video.poster = cards[index].querySelector('img')!.src;
+    video.src = cards[index].dataset.video!;
+    gallery.querySelector<HTMLAnchorElement>('#work-direct')!.href = video.src;
+    // Start under the wipe to preserve the click's browser playback permission.
+    video.muted = true;
+    video.play().catch(() => {});
+    try {
+      await playerTransition(false, () => { browser.hidden = true; player.hidden = false; });
+      if (gallery.hidden) return;
+      video.currentTime = 0;
+      video.muted = false;
+      returnButton.focus({ preventScroll: true });
+    } finally { busy = false; }
+  }
+
+  // Works uses the same navigation and navbar as every other dock page.
+  function dismiss() {
+    if (busy || gallery.hidden) return;
+    stopPreviews();
+    video.pause();
+    document.dispatchEvent(new CustomEvent('nde:navigate', {
+      detail: { view: 'home', source: gallery.querySelector('.works-back') },
+    }));
+  }
+  gallery.querySelector('.works-back')!.addEventListener('click', dismiss);
+  gallery.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!player.hidden) returnToGallery(); else dismiss();
+  });
+  document.addEventListener('nde:viewchange', event => {
+    const view = (event as CustomEvent<{ view: string }>).detail.view;
+
+    stopPreviews();
+    stopVideo();
+    wipe.getAnimations().forEach(animation => animation.cancel());
+    wipe.hidden = true;
+    player.hidden = true;
+    browser.hidden = false;
+    busy = false;
+    if (Object.prototype.hasOwnProperty.call(videoCategories, view)) {
+      const category = videoCategories[view as keyof typeof videoCategories];
+      gallery.querySelector('#works-category')!.textContent = category.label.toUpperCase();
+      gallery.querySelector('#works-title')!.textContent = category.title;
+      gallery.querySelector('#works-intro')!.textContent = category.intro;
+      gallery.dataset.page = view;
+      stage.setAttribute('aria-label', category.label);
+      allCards.forEach((card, index) => {
+        card.hidden = card.dataset.category !== view;
+        allPagination[index].hidden = card.hidden;
+      });
+      cards = allCards.filter(card => !card.hidden);
+      pagination = allPagination.filter(button => !button.hidden);
+      selected = 0;
+      gallery.querySelector<HTMLElement>('#works-collection')!.hidden = !cards.length;
+      gallery.querySelector<HTMLElement>('#works-empty')!.hidden = !!cards.length;
+      arrange();
+    }
+  });
+  returnButton.addEventListener('click', returnToGallery);
+  video.addEventListener('error', () => { if (video.hasAttribute('src')) error.hidden = false; });
+  allPagination.forEach((button, index) => button.addEventListener('click', () => {
+    const localIndex = cards.indexOf(allCards[index]);
+    if (localIndex >= 0) select(localIndex);
+  }));
+  prev.addEventListener('click', () => select(selected - 1));
+  next.addEventListener('click', () => select(selected + 1));
+  allCards.forEach(card => {
+    card.addEventListener('pointerenter', event => {
+      const index = cards.indexOf(card);
+      if (index < 0 || event.pointerType !== 'mouse' || !hover.matches) return;
+      select(index);
+      previewCard(index);
+    });
+    card.addEventListener('pointerleave', stopPreviews);
+    card.addEventListener('click', event => {
+      const index = cards.indexOf(card);
+      if (index < 0 || (swiped && event.detail !== 0)) return;
+      if (selected !== index) select(index);
+      else watch(index);
+    });
+  });
+  // Throttle a wheel gesture so a trackpad doesn't skip the entire collection.
+  stage.addEventListener('wheel', event => {
+    if (event.ctrlKey || !event.deltaY) return;
+    event.preventDefault();
+    if (performance.now() - lastWheel < 380) return;
+    lastWheel = performance.now();
+    select(selected + Math.sign(event.deltaY));
+  }, { passive: false });
+  gallery.addEventListener('keydown', event => {
+    if (!player.hidden || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    select(selected + (['ArrowDown', 'ArrowRight'].includes(event.key) ? 1 : -1));
+  });
+  let touchStart: { x: number; y: number } | null = null;
+  let swiped = false;
+  stage.addEventListener('pointerdown', event => { swiped = false; touchStart = { x: event.clientX, y: event.clientY }; });
+  stage.addEventListener('pointerup', event => {
+    if (!touchStart) return;
+    const dx = event.clientX - touchStart.x, dy = event.clientY - touchStart.y;
+    const distance = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+    if (Math.abs(distance) > 35) { swiped = true; select(selected + (distance < 0 ? 1 : -1)); }
+    touchStart = null;
+  });
+  stage.addEventListener('pointercancel', () => { touchStart = null; });
+  reduced.addEventListener('change', () => {
+    stopPreviews();
+    if (!gallery.hidden && player.hidden) arrange();
+  });
+  window.addEventListener('resize', () => { if (!gallery.hidden && player.hidden) arrange(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopPreviews(); video.pause(); }
+  });
+</script>
+
+<style>
+  .works-shell { max-width: 900px; margin: 0 auto; }
+  .works-header { text-align: center; max-width: 820px; margin: 0 auto; }
+  .works-footer button { width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--glass); font-size: 24px; }
+  .work-wipe { position: fixed; inset: 0; z-index: 500; background: #a0d7e5; pointer-events: all; }
+  .works-stage { display: flex; gap: 12px; height: clamp(280px, 38vw, 370px); margin: 32px 0 24px; isolation: isolate; touch-action: pan-y; }
+  .work-card { position: relative; display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; padding: 0; overflow: hidden; background: #e9e9ec; border: 1px solid #ffffff80; border-radius: 22px; box-shadow: 0 12px 28px #00000012; transition: flex-grow 650ms cubic-bezier(.22,1,.36,1), box-shadow 300ms; }
+  .work-card.is-selected { flex-grow: 9; box-shadow: 0 18px 36px #0002; }
+  .mac-titlebar { flex-shrink: 0; width: 100%; height: 34px; padding: 0 12px; display: flex; align-items: center; gap: 12px; background: linear-gradient(#f2f2f4, #dedee2); border-bottom: 1px solid #00000012; border-radius: 11px 11px 0 0; color: #686872; }
+  .mac-lights { display: flex; gap: 6px; flex-shrink: 0; }
+  .mac-lights > span { width: 9px; height: 9px; border-radius: 50%; background: #ff6058; box-shadow: inset 0 0 0 1px #00000012; }
+  .mac-lights > span:nth-child(2) { background: #ffbd2e; }
+  .mac-lights > span:nth-child(3) { background: #28c840; }
+  .mac-window-title { flex: 1; text-align: center; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mac-window-icon { width: 39px; text-align: right; font-size: 18px; }
+  .mac-player-window { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 24px 60px #0002; }
+  .work-card:not(.is-selected) .mac-titlebar { padding: 0; justify-content: center; gap: 0; }
+  .work-card:not(.is-selected) .mac-window-title, .work-card:not(.is-selected) .mac-window-icon { display: none; }
+  .work-card:not(.is-selected) .mac-lights { gap: 3px; }
+  .work-card:not(.is-selected) .mac-lights > span { width: 5px; height: 5px; }
+  .work-mini { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #ffffffdf; color: #24242a; font-size: 10px; transition: opacity 180ms; }
+  .is-selected .work-mini { opacity: 0; }
+
+  .work-pagination { display: flex; justify-content: center; margin: 0 0 16px; }
+  .work-pagination button { width: 32px; height: 32px; display: grid; place-items: center; background: transparent; border-radius: 50%; }
+  .work-pagination button::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: .4; transition: width 200ms, opacity 200ms; }
+  .work-pagination button[aria-pressed='true']::after { width: 18px; border-radius: 4px; background: var(--text); opacity: 1; }
+  :global(.dark) .work-card { background: #303035; border-color: #ffffff25; }
+  :global(.dark) .mac-titlebar { background: linear-gradient(#414148, #323238); color: #c5c5ce; border-bottom-color: #ffffff15; }
+  @media(max-width:700px) { .mac-titlebar { height: 30px; padding: 0 9px; gap: 8px; } .mac-window-title { font-size: 9px; } .mac-window-icon { width: 20px; } .mac-lights { gap: 4px; } .mac-lights > span { width: 8px; height: 8px; } }
+
+  .work-card:focus-visible { outline-offset: 4px; }
+  .work-image { display: block; flex: 1; min-height: 0; position: relative; width: 100%; overflow: hidden; border-radius: 0 0 11px 11px; background: #101015; }
+  .work-image img, .work-preview { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .work-preview { opacity: 0; transition: opacity 180ms; pointer-events: none; }
+  .previewing .work-preview { opacity: 1; }
+  .work-shade { position: absolute; inset: 0; background: linear-gradient(transparent 55%, #000b); pointer-events: none; }
+  .work-caption { opacity: 0; white-space: nowrap; transition: opacity 200ms; position: absolute; bottom: 18px; left: 22px; right: 22px; display: flex; justify-content: space-between; color: white; font-size: 14px; }
+  .is-selected .work-caption { opacity: 1; transition-delay: 180ms; }
+  .work-caption > span:last-child { font-size: 12px; }
+  .work-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 11px 17px; border: 1px solid #ffffff50; background: #12121b85; backdrop-filter: blur(10px); border-radius: 30px; color: white; font-size: 12px; opacity: 0; transition: opacity 180ms; white-space: nowrap; }
+  .is-selected .work-play { opacity: 1; }
+  .works-footer { display: flex; justify-content: center; align-items: center; gap: 24px; text-align: center; position: relative; z-index: 20; }
+  .works-footer #work-status { font-size: 14px; margin: 0; }
+  .works-footer .works-hint { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
+  .works-footer button:disabled { opacity: .3; cursor: default; }
+  #work-player { max-width: 820px; margin: 36px auto 0; text-align: center; }
+  h3 { font-size: 24px; font-weight: 400; margin: 18px 0; }
+  #work-video { width: 100%; max-height: 65svh; aspect-ratio: 16/9; background: #08080a; display: block; }
+  #work-error { font-size: 14px; } #work-error a { text-decoration: underline; }
+  @media(max-width:700px) { .works-stage { height: 280px; gap: 6px; } .work-card { border-radius: 16px; } .work-card.is-selected { flex-grow: 6; } .works-footer { gap: 12px; } .works-hint { font-size: 10px; } .work-caption { bottom: 10px; left: 14px; right: 14px; } }
+  @media(prefers-reduced-motion:reduce) { .work-card, .work-preview, .work-play { transition: none; } }
+</style>

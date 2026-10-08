@@ -1,0 +1,185 @@
+---
+// Edit this list to change the cards without touching the animation code.
+const tools = [
+  { name: 'After Effects', mark: 'Ae', color: 'ae', category: 'Motion & animation' },
+  { name: 'CapCut', mark: 'CC', color: 'capcut', category: 'Quick cuts & social edits' },
+  { name: 'Premiere Pro', mark: 'Pr', color: 'premiere', category: 'Video & storytelling' },
+  { name: 'Canva', mark: 'C', color: 'canva', category: 'Content & layouts' },
+  { name: 'Adobe Illustrator', mark: 'Ai', color: 'illustrator', category: 'Vector & graphic design' },
+];
+---
+
+<dialog id="toolbox" aria-labelledby="toolbox-title">
+  <div class="toolbox-shell">
+    <button class="toolbox-close" type="button" aria-label="Close creative toolbox" autofocus>&times;</button>
+    <p class="toolbox-eyebrow">BEHIND THE CREATIVE</p>
+    <h2 id="toolbox-title">My creative toolbox.</h2>
+    <p class="toolbox-intro">A few favorites. Endless possibilities.</p>
+    <div class="toolbox-stage" role="region" aria-roledescription="carousel" aria-label="Editing and design tools">
+      {tools.map((tool, index) => (
+        <button class={`tool-card ${tool.color}`} type="button" data-index={index} aria-label={`Select ${tool.name}`}>
+          <span class="tool-card-number">0{index + 1} / 05</span>
+          <span class="tool-mark" aria-hidden="true">{tool.mark}</span>
+          <span class="tool-name">{tool.name}</span>
+          <span class="tool-category">{tool.category}</span>
+        </button>
+      ))}
+    </div>
+    <div class="toolbox-controls">
+      <button type="button" id="tool-prev" aria-label="Previous tool">&larr;</button>
+      <p id="tool-status" aria-live="polite" aria-atomic="true">After Effects · 1 of 5</p>
+      <button type="button" id="tool-next" aria-label="Next tool">&rarr;</button>
+    </div>
+    <p class="toolbox-hint">Swipe, use the arrows, or pick a card.</p>
+  </div>
+</dialog>
+
+<script>
+  const trigger = document.querySelector<HTMLButtonElement>('#toolbox-toggle')!;
+  const dialog = document.querySelector<HTMLDialogElement>('#toolbox')!;
+  const stage = dialog.querySelector<HTMLElement>('.toolbox-stage')!;
+  const cards = [...dialog.querySelectorAll<HTMLButtonElement>('.tool-card')];
+  const status = dialog.querySelector<HTMLElement>('#tool-status')!;
+  const close = dialog.querySelector<HTMLButtonElement>('.toolbox-close')!;
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let selected = 0;
+  let moving = false;
+  let previousOverflow = '';
+
+  // Wrap around the five cards, keeping two on either side of the selection.
+  function arrange() {
+    const step = Math.min(162, stage.clientWidth * .26);
+    cards.forEach((card, index) => {
+      const offset = ((index - selected + cards.length + 2) % cards.length) - 2;
+      const distance = Math.abs(offset);
+      card.style.transform = `translate(calc(-50% + ${offset * step}px), calc(-50% + ${distance * 18}px)) rotateY(${-offset * 16}deg) rotateZ(${offset * 3}deg) scale(${1 - distance * .13})`;
+      card.style.opacity = String(1 - distance * .18);
+      card.style.zIndex = String(5 - distance);
+      card.setAttribute('aria-pressed', String(offset === 0));
+    });
+    status.textContent = `${cards[selected].querySelector('.tool-name')!.textContent} · ${selected + 1} of ${cards.length}`;
+  }
+
+  function select(index: number) {
+    if (moving) return;
+    selected = (index + cards.length) % cards.length;
+    arrange();
+  }
+
+  // The cards travel between the real folder position and their carousel positions.
+  async function animateCards(opening: boolean) {
+    if (reducedMotion.matches) return;
+    const folder = trigger.getBoundingClientRect();
+    const bounds = stage.getBoundingClientRect();
+    const dx = folder.left + folder.width / 2 - bounds.left - bounds.width / 2;
+    const dy = folder.top + folder.height / 2 - bounds.top - bounds.height / 2;
+    const animations = cards.map((card, index) => {
+      const packed = { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.08)`, opacity: 0 };
+      const spread = { transform: card.style.transform, opacity: card.style.opacity };
+      return card.animate(opening ? [packed, spread] : [spread, packed], {
+        duration: opening ? 650 : 420,
+        delay: (opening ? index : cards.length - index - 1) * 55,
+        easing: opening ? 'cubic-bezier(.16,1,.3,1)' : 'cubic-bezier(.6,0,.8,.3)',
+        fill: 'both',
+      });
+    });
+    await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
+    // Keep the packed closing frames until the dialog has been removed.
+    if (opening) animations.forEach(animation => animation.cancel());
+  }
+
+  trigger.addEventListener('click', async () => {
+    if (moving || dialog.open) return;
+    moving = true;
+    previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    trigger.setAttribute('aria-expanded', 'true');
+    dialog.showModal();
+    dialog.classList.add('toolbox-moving');
+    arrange();
+    await animateCards(true);
+    dialog.classList.remove('toolbox-moving');
+    moving = false;
+  });
+
+  async function dismiss() {
+    if (moving || !dialog.open) return;
+    moving = true;
+    dialog.classList.add('toolbox-moving');
+    // Freeze any in-progress carousel movement before packing the cards.
+    stage.getAnimations({ subtree: true }).forEach(animation => animation.finish());
+    await animateCards(false);
+    dialog.close();
+    stage.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
+    dialog.classList.remove('toolbox-moving');
+    trigger.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = previousOverflow;
+    moving = false;
+    trigger.focus({ preventScroll: true });
+  }
+
+  close.addEventListener('click', dismiss);
+  dialog.addEventListener('cancel', event => { event.preventDefault(); dismiss(); });
+  dialog.addEventListener('click', event => { if (event.target === dialog) dismiss(); });
+  dialog.querySelector('#tool-prev')!.addEventListener('click', () => select(selected - 1));
+  dialog.querySelector('#tool-next')!.addEventListener('click', () => select(selected + 1));
+  cards.forEach((card, index) => card.addEventListener('click', event => {
+    // Keyboard activation should still work after a touch swipe.
+    if (!suppressClick || event.detail === 0) select(index);
+  }));
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      select(selected + (event.key === 'ArrowLeft' ? -1 : 1));
+    }
+  });
+
+  let start: { x: number; y: number } | null = null;
+  let suppressClick = false;
+  stage.addEventListener('pointerdown', event => {
+    suppressClick = false;
+    start = { x: event.clientX, y: event.clientY };
+  });
+  stage.addEventListener('pointerup', event => {
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) {
+      suppressClick = true;
+      select(selected + (dx < 0 ? 1 : -1));
+    }
+    start = null;
+  });
+  stage.addEventListener('pointercancel', () => { start = null; });
+  window.addEventListener('resize', () => { if (dialog.open && !moving) arrange(); });
+</script>
+
+<style>
+  dialog { width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; padding: 28px 16px; border: 0; background: transparent; color: var(--text); overflow-x: hidden; }
+  dialog::backdrop { background: color-mix(in srgb, var(--background) 87%, transparent); backdrop-filter: blur(18px); }
+  .toolbox-shell { position: relative; width: min(100%, 1000px); min-height: min(680px, calc(100svh - 56px)); margin: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 54px 0 24px; }
+  .toolbox-close { position: absolute; right: 8px; top: 0; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; background: var(--glass); font-size: 28px; }
+  .toolbox-eyebrow { font-size: 10px; letter-spacing: .2em; color: var(--muted); margin: 0 0 14px; }
+  h2 { font-size: clamp(30px, 4vw, 48px); margin: 0; letter-spacing: -.045em; }
+  .toolbox-intro { font-size: 14px; color: var(--muted); margin: 14px 0 0; }
+  .toolbox-stage { width: 100%; height: 355px; position: relative; perspective: 1100px; touch-action: pan-y; }
+  .tool-card { position: absolute; top: 50%; left: 50%; width: clamp(178px, 24vw, 224px); height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #ffffff90; border-radius: 25px; background: linear-gradient(145deg, #ffffffef, #ffffff8a); color: #24232b; box-shadow: inset 0 1px 1px #fff, 0 24px 50px #16265220; transition: transform 550ms cubic-bezier(.2,.8,.2,1), opacity 400ms; user-select: none; }
+  .toolbox-moving .tool-card { transition: none; }
+  .tool-card-number { position: absolute; top: 18px; left: 20px; font-size: 10px; letter-spacing: .1em; color: #777582; }
+  .tool-mark { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 23px; margin: 15px 0 25px; font-size: 43px; font-weight: 600; letter-spacing: -.05em; box-shadow: inset 0 1px 2px #ffffff50, 0 12px 25px #0002; }
+  .ae .tool-mark { background: #080849; color: #ac9bff; }
+  .capcut .tool-mark { background: #191919; color: white; font-size: 32px; letter-spacing: -.13em; }
+  .premiere .tool-mark { background: #17104c; color: #c5a0ff; }
+  .canva .tool-mark { background: linear-gradient(135deg, #00c4cc, #7d2ae8); color: white; font-family: Georgia, serif; font-style: italic; }
+  .illustrator .tool-mark { background: #321700; color: #ffad39; }
+  .tool-name { font-size: 17px; font-weight: 500; }
+  .tool-category { font-size: 11px; margin-top: 9px; color: #6c6978; }
+  .toolbox-controls { display: flex; align-items: center; gap: 20px; }
+  .toolbox-controls button { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; background: var(--glass); font-size: 22px; }
+  #tool-status { width: 190px; font-size: 12px; }
+  .toolbox-hint { color: var(--muted); font-size: 11px; margin-top: 20px; }
+  :global(.dark) .tool-card { background: linear-gradient(145deg, #3c3c49, #252530); border-color: #ffffff25; color: #f4f3fa; box-shadow: inset 0 1px 1px #ffffff25, 0 24px 50px #0005; }
+  :global(.dark) .tool-category, :global(.dark) .tool-card-number { color: #b7b2c6; }
+  @media(max-width:600px) { .toolbox-stage { height: 310px; } .tool-card { height: 230px; } .toolbox-controls { gap: 10px; } }
+  @media(prefers-reduced-motion:reduce) { .tool-card { transition: none; } }
+</style>

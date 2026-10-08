@@ -1,0 +1,100 @@
+<!-- Decorative cursor: the real links and buttons still receive every click. -->
+<div class="custom-cursor" aria-hidden="true">
+  <span class="cursor-ring"></span>
+  <span class="cursor-dot"></span>
+</div>
+
+<script>
+  const cursor = document.querySelector<HTMLElement>('.custom-cursor')!;
+  const dot = cursor.querySelector<HTMLElement>('.cursor-dot')!;
+  const ring = cursor.querySelector<HTMLElement>('.cursor-ring')!;
+  const enabled = matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) and (forced-colors: none)');
+  let x = 0, y = 0, ringX = 0, ringY = 0;
+  let frame = 0;
+  let visible = false;
+
+  function hide() {
+    visible = false;
+    cancelAnimationFrame(frame);
+    frame = 0;
+    document.documentElement.classList.remove('custom-cursor-on');
+    cursor.classList.remove('is-visible', 'is-hovering', 'is-pressed');
+  }
+
+  function updateTarget(target: Element | null) {
+    // Preserve the native cursor for typing, media controls, and embedded content.
+    if (target?.closest('input, textarea, select, [contenteditable], iframe, video')) {
+      hide();
+      return false;
+    }
+    cursor.classList.toggle('is-hovering', !!target?.closest('a[href], button:not(:disabled), [role="button"]'));
+    return true;
+  }
+
+  // The dot stays precise; only the surrounding ring trails slightly behind.
+  function draw() {
+    ringX += (x - ringX) * .24;
+    ringY += (y - ringY) * .24;
+    dot.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+    ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate(-50%, -50%)`;
+    frame = Math.hypot(x - ringX, y - ringY) > .1 ? requestAnimationFrame(draw) : 0;
+  }
+
+  document.addEventListener('pointermove', event => {
+    if (!enabled.matches || event.pointerType !== 'mouse') { hide(); return; }
+    x = event.clientX;
+    y = event.clientY;
+    if (!updateTarget(event.target instanceof Element ? event.target : null)) return;
+    if (!visible) {
+      // Start at the pointer, avoiding a sweep from the corner on first entry.
+      ringX = x;
+      ringY = y;
+      visible = true;
+      draw();
+      cursor.classList.add('is-visible');
+      document.documentElement.classList.add('custom-cursor-on');
+    }
+    if (!frame) frame = requestAnimationFrame(draw);
+  }, { passive: true });
+  document.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'mouse') { hide(); return; }
+    if (visible) cursor.classList.add('is-pressed');
+  }, { passive: true });
+  document.addEventListener('pointerup', () => cursor.classList.remove('is-pressed'));
+  document.addEventListener('pointercancel', hide);
+  document.documentElement.addEventListener('pointerleave', hide);
+  window.addEventListener('blur', hide);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Tab') hide(); });
+  enabled.addEventListener('change', hide);
+
+  // Native dialogs sit above every z-index. Move the cursor into the open dialog
+  // so it remains visible over the toolbox, then return it to the page on close.
+  function syncLayer() {
+    const dialogs = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')];
+    const host = dialogs.at(-1) ?? document.body;
+    if (cursor.parentElement !== host) host.append(cursor);
+    if (visible) updateTarget(document.elementFromPoint(x, y));
+  }
+  const observer = new MutationObserver(syncLayer);
+  document.querySelectorAll('dialog').forEach(dialog => observer.observe(dialog, { attributes: true, attributeFilter: ['open'] }));
+  syncLayer();
+</script>
+
+<style>
+  .custom-cursor { position: fixed; inset: 0; z-index: 1000; pointer-events: none; opacity: 0; }
+  .custom-cursor.is-visible { opacity: 1; }
+  .cursor-dot, .cursor-ring { position: absolute; top: 0; left: 0; border-radius: 50%; pointer-events: none; }
+  .cursor-dot { width: 6px; height: 6px; background: #376de0; box-shadow: 0 0 0 1px #ffffffb0; }
+  .cursor-ring { width: 32px; height: 32px; border: 1px solid #497ddc90; background: #497ddc08; transition: width 180ms ease, height 180ms ease, background-color 180ms ease, border-color 180ms ease; }
+  .is-hovering .cursor-ring { width: 48px; height: 48px; border-color: #497ddccc; background: #497ddc15; }
+  .is-pressed .cursor-ring { width: 24px; height: 24px; background: #497ddc30; }
+  :global(.dark) .cursor-dot { background: #b9ceff; box-shadow: 0 0 0 1px #20202290; }
+  :global(.dark) .cursor-ring { border-color: #9cbbffb0; }
+  @media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) and (forced-colors:none) {
+    :global(html.custom-cursor-on), :global(html.custom-cursor-on *) { cursor: none !important; }
+  }
+  @media(hover:none), (pointer:coarse), (prefers-reduced-motion:reduce), (forced-colors:active) {
+    .custom-cursor { display: none; }
+  }
+</style>

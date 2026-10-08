@@ -1,0 +1,86 @@
+<!-- Decorative only: this layer never intercepts clicks or receives focus. -->
+<div class="background-grid" aria-hidden="true">
+  <div class="grid-highlight"></div>
+</div>
+
+<script>
+  const grid = document.querySelector<HTMLElement>('.background-grid')!;
+  const interactive = matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
+  let frame = 0;
+  let x = 0;
+  let y = 0;
+
+  function clearHighlight() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    grid.classList.remove('is-active');
+  }
+
+  // Batch cursor updates into one paint per frame, with no idle animation loop.
+  document.addEventListener('pointermove', event => {
+    if (!interactive.matches || event.pointerType !== 'mouse' || document.querySelector('dialog[open]')) {
+      clearHighlight();
+      return;
+    }
+    x = event.clientX;
+    y = event.clientY;
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      grid.style.setProperty('--cursor-x', `${x}px`);
+      grid.style.setProperty('--cursor-y', `${y}px`);
+      grid.classList.add('is-active');
+      frame = 0;
+    });
+  }, { passive: true });
+
+  document.documentElement.addEventListener('pointerleave', clearHighlight);
+  window.addEventListener('blur', clearHighlight);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearHighlight();
+  });
+  document.addEventListener('click', () => {
+    if (document.querySelector('dialog[open]')) clearHighlight();
+  });
+  interactive.addEventListener('change', clearHighlight);
+</script>
+
+<style>
+  .background-grid {
+    /* Adjust these three values to change the spacing and contrast. */
+    --grid-size: 48px;
+    --grid-line: #263b5710;
+    --grid-active-line: #497ddc65;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: var(--grid-size) var(--grid-size);
+  }
+  .grid-highlight {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--grid-active-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-active-line) 1px, transparent 1px);
+    background-size: var(--grid-size) var(--grid-size);
+    /* Reveal the brighter grid only around the pointer, with a soft edge. */
+    mask-image: radial-gradient(circle 220px at var(--cursor-x, 50%) var(--cursor-y, 50%), #000 0%, transparent 100%);
+    -webkit-mask-image: radial-gradient(circle 220px at var(--cursor-x, 50%) var(--cursor-y, 50%), #000 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+  .is-active .grid-highlight { opacity: 1; }
+  :global(.dark) .background-grid {
+    --grid-line: #cadbff0c;
+    --grid-active-line: #8eafff70;
+  }
+  @media(max-width:700px) {
+    .background-grid { --grid-size: 36px; }
+  }
+  @media(prefers-reduced-motion:reduce), (hover:none), (pointer:coarse) {
+    .grid-highlight { display: none; }
+  }
+</style>
