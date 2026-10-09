@@ -1,6 +1,6 @@
 // Brief introductions: edit these sentences to match your own voice.
 export const videoCategories = {
-  films: { label: 'Films', title: 'Stories worth staying for.', intro: 'I shape cinematic edits, vlogs, and longer stories through pacing, sound, and the moments that matter.' },
+  films: { label: 'Long-form', title: 'Stories worth staying for.', intro: 'I shape vlogs, client edits, and longer stories through pacing, sound, and the moments that matter.' },
   reels: { label: 'Reels', title: 'A strong idea. A short format.', intro: 'I turn ideas into short-form edits with a clear hook, purposeful cuts, and a pace that keeps the story moving.' },
   motion: { label: 'Motion Graphics', title: 'Ideas with a little movement.', intro: 'I bring typography and graphics to life, using movement to guide attention and make a message easier to follow.' },
 };

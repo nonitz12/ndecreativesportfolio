@@ -43,6 +43,9 @@ let activeView = 'home';
 let busy = false;
 let opener: HTMLElement | null = null;
 paintIcons();
+// The first category is long-form editing; keep its compact dock label clear.
+document.querySelector<HTMLElement>('.dock .video span')!.textContent = 'Long-form';
+document.querySelector<HTMLElement>('.dock .video')!.setAttribute('aria-label', 'Long-form videos, vlogs and client edits');
 
 // The dock opens with a colored circle; closing reverses both animation stages.
 async function navigate(view: string, source: HTMLElement | null, animate = true) {
